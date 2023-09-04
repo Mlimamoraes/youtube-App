@@ -3,8 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:teste_youtube/models/channel_model.dart';
 import 'package:teste_youtube/models/videos_model.dart';
-import 'package:teste_youtube/utilities/keys.dart';
-import '../api.dart';
+import 'package:teste_youtube/api.dart';
 
 class APIService {
   APIService._instantiate();
@@ -14,12 +13,13 @@ class APIService {
   final String _baseUrl = 'www.googleapis.com';
   String _nextPageToken = '';
 
-  Future<Channel> fetchChannel({String channelId}) async {
+  Future<Channel> fetchChannel({required String channelId}) async {
     Map<String, String> parameters = {
       'part': 'snippet, contentDetails, statistics',
       'id': channelId,
       'key': API_KEY,
     };
+
     Uri uri = Uri.https(
       _baseUrl,
       '/youtube/v3/channels',
@@ -45,7 +45,9 @@ class APIService {
     }
   }
 
-  Future<List<Video>> fetchVideosFromPlaylist({String playlistId}) async {
+  Future<List<Video>> fetchVideosFromPlaylist({
+    required String playlistId,
+  }) async {
     Map<String, String> parameters = {
       'part': 'snippet',
       'playlistId': playlistId,
@@ -73,7 +75,7 @@ class APIService {
       // Fetch first eight videos from uploads playlist
       List<Video> videos = [];
       videosJson.forEach(
-            (json) => videos.add(
+        (json) => videos.add(
           Video.fromMap(json['snippet']),
         ),
       );
@@ -82,5 +84,4 @@ class APIService {
       throw json.decode(response.body)['error']['message'];
     }
   }
-
 }

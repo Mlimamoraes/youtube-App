@@ -1,6 +1,6 @@
 import 'videos_model.dart';
-class Channel {
 
+class Channel {
   final String id;
   final String title;
   final String profilePictureUrl;
@@ -27,5 +27,7 @@ class Channel {
       subscriberCount: map['statistics']['subscriberCount'],
       videoCount: map['statistics']['videoCount'],
       uploadPlaylistId: map['contentDetails']['relatedPlaylists']['uploads'],
+      videos: [],
     );
   }
+}
