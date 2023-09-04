@@ -10,29 +10,30 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  Future<Channel?>? _channelFuture;
   late Channel _channel;
-  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _initChannel();
+    _channelFuture = _getChannel();
   }
 
-  _initChannel() async {
-    Channel channel = await APIService.instance
+  Future<Channel?> _getChannel() async {
+    final channel = await APIService.instance
         .fetchChannel(channelId: 'UC6Dy0rQ6zDnQuHQ1EeErGUA');
-    setState(() {
-      _channel = channel;
-    });
+
+    setState(() => _channel = channel);
+
+    return channel;
   }
 
   _buildProfileInfo() {
     return Container(
-      margin: EdgeInsets.all(20.0),
-      padding: EdgeInsets.all(20.0),
+      margin: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(20.0),
       height: 100.0,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
@@ -47,17 +48,19 @@ class _HomeScreenState extends State<HomeScreen> {
           CircleAvatar(
             backgroundColor: Colors.white,
             radius: 35.0,
-            backgroundImage: NetworkImage(_channel.profilePictureUrl),
+            backgroundImage: NetworkImage(
+              _channel != null ? _channel.profilePictureUrl : '',
+            ),
           ),
-          SizedBox(width: 12.0),
+          const SizedBox(width: 12.0),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  _channel.title,
-                  style: TextStyle(
+                  _channel != null ? _channel?.title as String : '',
+                  style: const TextStyle(
                     color: Colors.black,
                     fontSize: 20.0,
                     fontWeight: FontWeight.w600,
@@ -65,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '${_channel.subscriberCount} subscribers',
+                  '${_channel?.subscriberCount} subscribers',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 16.0,
@@ -90,10 +93,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
-        padding: EdgeInsets.all(10.0),
+        margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
+        padding: const EdgeInsets.all(10.0),
         height: 140.0,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
           boxShadow: [
             BoxShadow(
@@ -109,11 +112,11 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 150.0,
               image: NetworkImage(video.thumbnailUrl),
             ),
-            SizedBox(width: 10.0),
+            const SizedBox(width: 10.0),
             Expanded(
               child: Text(
                 video.title,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.black,
                   fontSize: 18.0,
                 ),
@@ -126,50 +129,64 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   _loadMoreVideos() async {
-    _isLoading = true;
-    List<Video> moreVideos = await APIService.instance
-        .fetchVideosFromPlaylist(playlistId: _channel.uploadPlaylistId);
+    List<Video> moreVideos = await APIService.instance.fetchVideosFromPlaylist(
+      playlistId: _channel.uploadPlaylistId,
+    );
+
     List<Video> allVideos = _channel.videos..addAll(moreVideos);
+
     setState(() {
       _channel.videos = allVideos;
     });
-    _isLoading = false;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('YouTube Channel'),
+        title: const Text('YouTube Channel'),
       ),
-      body: _channel != null
-          ? NotificationListener<ScrollNotification>(
-        onNotification: (ScrollNotification scrollDetails) {
-          if (!_isLoading &&
-              _channel.videos.length != int.parse(_channel.videoCount) &&
-              scrollDetails.metrics.pixels ==
-                  scrollDetails.metrics.maxScrollExtent) {
-            _loadMoreVideos();
+      body: FutureBuilder<Channel?>(
+        future: _channelFuture,
+        builder: (BuildContext context, AsyncSnapshot<Channel?> snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).primaryColor,
+                ),
+              ),
+            );
+          } else if (snapshot.hasError) {
+            return Center(
+              child: Text('Error: ${snapshot.error}'),
+            );
+          } else if (!snapshot.hasData) {
+            return const Center(
+              child: Text('No data available.'),
+            );
+          } else {
+            return NotificationListener<ScrollNotification>(
+              onNotification: (ScrollNotification scrollDetails) {
+                if (scrollDetails.metrics.pixels ==
+                    scrollDetails.metrics.maxScrollExtent) {
+                  _loadMoreVideos();
+                }
+                return false;
+              },
+              child: ListView.builder(
+                itemCount: 1 + snapshot.data!.videos.length,
+                itemBuilder: (BuildContext context, int index) {
+                  if (index == 0) {
+                    return _buildProfileInfo();
+                  }
+                  Video video = snapshot.data!.videos[index - 1];
+                  return _buildVideo(video);
+                },
+              ),
+            );
           }
-          return false;
         },
-        child: ListView.builder(
-          itemCount: 1 + _channel.videos.length,
-          itemBuilder: (BuildContext context, int index) {
-            if (index == 0) {
-              return _buildProfileInfo();
-            }
-            Video video = _channel.videos[index - 1];
-            return _buildVideo(video);
-          },
-        ),
-      )
-          : Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(
-            Theme.of(context).primaryColor, // Red
-          ),
-        ),
       ),
     );
   }
